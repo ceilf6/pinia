@@ -77,6 +77,7 @@ export type StoreToRefs<SS extends StoreGeneric> =
     : never
 
 /**
+ * 如果不用 storeToRefs 仓库中的数据 "breaks reactivity" 不是响应式的
  * Creates an object of references with all the state, getters, and plugin-added
  * state properties of the store. Similar to `toRefs()` but specifically
  * designed for Pinia stores so methods and non reactive properties are
@@ -91,6 +92,7 @@ export function storeToRefs<SS extends StoreGeneric>(
 
   const refs = {} as StoreToRefs<SS>
   for (const key in rawStore) {
+    // 遍历仓库对象的属性
     const value = rawStore[key]
     // There is no native method to check for a computed
     // https://github.com/vuejs/core/pull/4165
@@ -99,12 +101,14 @@ export function storeToRefs<SS extends StoreGeneric>(
       refs[key] =
         // ...
         computed({
+          // 计算属性，类似于寄存器属性
           get: () => store[key],
           set(value) {
             store[key] = value
           },
         })
     } else if (isRef(value) || isReactive(value)) {
+      // 如果本身就是响应式的，那么就直接讲原本 key 添加到 refs 对象上
       // @ts-expect-error: the key is state or getter
       refs[key] =
         // ---

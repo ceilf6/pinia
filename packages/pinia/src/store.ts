@@ -146,6 +146,7 @@ function isComputed(o: any): o is ComputedRef {
   return !!(isRef(o) && (o as any).effect)
 }
 
+// createOptionsStore 内部本质也是调用 createSetupStore，前者在内部将参数转为后者需要的格式
 function createOptionsStore<
   Id extends string,
   S extends StateTree,
@@ -208,6 +209,7 @@ function createOptionsStore<
     )
   }
 
+  // createOptionsStore 内部本质也是调用 createSetupStore
   store = createSetupStore(id, setup, options, pinia, hot, true)
 
   return store as any
@@ -855,10 +857,13 @@ export function defineStore(
         _ActionsTree
       >
 
-  const isSetupStore = typeof setup === 'function'
+  const isSetupStore = typeof setup === 'function' // 如果 setup 是函数说明是组合式风格
   // the option store setup will contain the actual options in this case
-  options = isSetupStore ? setupOptions : setup
+  options = isSetupStore ? setupOptions : setup 
+  // 如果 setup 风格，那么第三个参数就是插件选项
+  // 否则就将整个 配置对象 给options
 
+  // defineStore 最终返回的是 useStore，那么外部就是通过执行 useStore 拿到的仓库
   function useStore(pinia?: Pinia | null, hot?: StoreGeneric): StoreGeneric {
     const hasContext = hasInjectionContext()
     pinia =
@@ -869,6 +874,7 @@ export function defineStore(
     if (pinia) setActivePinia(pinia)
 
     if (__DEV__ && !activePinia) {
+      // 如果 vue 没有配置 .use(pinia) 插件，就会报错
       throw new Error(
         `[🍍]: "getActivePinia()" was called but there was no active Pinia. Are you trying to use a store before calling "app.use(pinia)"?\n` +
           `See https://pinia.vuejs.org/core-concepts/outside-component-usage.html for help.\n` +
@@ -879,10 +885,16 @@ export function defineStore(
     pinia = activePinia!
 
     if (!pinia._s.has(id)) {
-      // creating the store registers it in `pinia._s`
+      // creating the store registers it in `pinia._s` // _ 表示内部使用
+      // 创建仓库并将这个仓库注册到 pinia._s 中
       if (isSetupStore) {
+        // 根据不同风格，调用不同的创建仓库函数
+        // setup风格
         createSetupStore(id, setup, options, pinia)
       } else {
+        // options风格
+        // createOptionsStore 内部本质也是调用 createSetupStore，前者在内部将参数转为后者需要的格式
+        // 所以 setup 效率更高
         createOptionsStore(id, options as any, pinia)
       }
 
@@ -928,6 +940,7 @@ export function defineStore(
   }
 
   useStore.$id = id
+  // useStore对外返回函数上还挂载属性 $id 表示仓库id
 
   return useStore
 }
